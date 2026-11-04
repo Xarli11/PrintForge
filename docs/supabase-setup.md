@@ -26,6 +26,8 @@ supabase db push --yes --remote
 ```
 Un `supabase db push` sin `--remote` intenta usar Docker local. `--yes` es obligatorio en CI/agentes (el valor por defecto de la confirmación es «no»).
 
+Aplica **en orden** `20261104000001_core.sql` y `20261104000002_files_materials.sql`. La segunda crea el bucket privado `printforge` (límite 50 MB), las tablas de la biblioteca y las políticas de Storage del propietario.
+
 La migración concede privilegios de forma **explícita** (`grant ... to authenticated`) porque Supabase está retirando los privilegios automáticos en `public`; funciona con cualquiera de las dos configuraciones del Data API.
 
 ## 5. Registrar el UUID del propietario (una sola vez)
