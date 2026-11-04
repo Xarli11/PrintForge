@@ -1,0 +1,57 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+
+/* Sistema visual PrintForge: carbón + grafito + esmeralda. Un solo acento, estados con color semántico. */
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
+
+  --color-bg: #0b0d0e;
+  --color-surface: #111416;
+  --color-raised: #171b1e;
+  --color-hover: #1d2226;
+  --color-line: #232a2e;
+  --color-line-strong: #323b40;
+
+  --color-fg: #e8edeb;
+  --color-muted: #8d9894;
+  --color-faint: #5e6965;
+
+  --color-accent: #10b981;
+  --color-accent-fg: #34d399;
+  --color-accent-soft: #10b98120;
+  --color-on-accent: #04130d;
+
+  --color-warn: #f5b13d;
+  --color-danger: #f0605d;
+  --color-info: #56b6e8;
+  --color-violet: #a78bfa;
+
+  --radius-card: 14px;
+  --shadow-pop: 0 18px 50px -12px rgb(0 0 0 / 0.7);
+
+  --animate-rise: rise 220ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-fade: fade 160ms ease-out both;
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+}
+
+@layer base {
+  html { color-scheme: dark; -webkit-text-size-adjust: 100%; }
+  body {
+    @apply bg-bg font-sans text-fg antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  :focus-visible { outline: 2px solid var(--color-accent-fg); outline-offset: 2px; border-radius: 6px; }
+  ::selection { background: var(--color-accent-soft); }
+  * { scrollbar-width: thin; scrollbar-color: var(--color-line-strong) transparent; }
+  input, select, textarea, button { font: inherit; }
+  /* iOS no hace zoom al enfocar si la fuente es ≥ 16px */
+  @media (max-width: 767px) { input, select, textarea { font-size: 16px; } }
+  dialog::backdrop { background: rgb(0 0 0 / 0.62); backdrop-filter: blur(2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
