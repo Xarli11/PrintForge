@@ -2,11 +2,14 @@
 // Abre un Chromium visible; el propietario inicia sesión a mano (la contraseña nunca pasa por el script).
 // Crea datos con prefijo "[e2e]" y los borra al final. Uso: node scripts/verify-real.mjs [url]
 import { chromium } from '@playwright/test'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, readFileSync } from 'node:fs'
 
 const BASE = process.argv[2] ?? 'http://127.0.0.1:5173'
 const SHOTS = 'test-results/real'
 mkdirSync(SHOTS, { recursive: true })
+
+const envLines = readFileSync(new URL('../.env.local', import.meta.url), 'utf8').split(String.fromCharCode(10))
+const env = Object.fromEntries(envLines.map((l) => l.trim()).filter((l) => /^[A-Z_]+=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim()]))
 const results = []
 const NAME = '[e2e] 33 figuras'
 
@@ -41,6 +44,23 @@ try {
     await page.getByRole('heading', { name: 'Dashboard' }).waitFor({ timeout: 600_000 })
   })
   await page.screenshot({ path: `${SHOTS}/01-dashboard.png`, fullPage: true })
+
+  await step('SEGURIDAD: authenticated no puede ejecutar rls_auto_enable(); is_owner() sí funciona', async () => {
+    const t = await page.evaluate(() => {
+      const k = Object.keys(localStorage).find((x) => x.startsWith('sb-') && x.endsWith('-auth-token'))
+      return k ? JSON.parse(localStorage.getItem(k)).access_token : null
+    })
+    const call = (fn) => fetch(`${env.VITE_SUPABASE_URL}/rest/v1/rpc/${fn}`, { method: 'POST', headers: { apikey: env.VITE_SUPABASE_ANON_KEY, authorization: `Bearer ${t}`, 'content-type': 'application/json' }, body: '{}' })
+    const denied = await call('rls_auto_enable')
+    const body = await denied.text()
+    console.log('        rls_auto_enable (propietario): HTTP', denied.status, body.slice(0, 80))
+    if (denied.status !== 401 || !body.includes('42501')) throw new Error('rls_auto_enable sigue siendo ejecutable por authenticated')
+    const anonCall = await fetch(`${env.VITE_SUPABASE_URL}/rest/v1/rpc/rls_auto_enable`, { method: 'POST', headers: { apikey: env.VITE_SUPABASE_ANON_KEY, 'content-type': 'application/json' }, body: '{}' })
+    console.log('        rls_auto_enable (anónimo): HTTP', anonCall.status)
+    if (anonCall.status !== 401) throw new Error('rls_auto_enable sigue siendo ejecutable por anon')
+    const owner = await call('is_owner')
+    if (owner.status !== 200 || (await owner.text()) !== 'true') throw new Error('is_owner() ya no funciona para el propietario')
+  })
 
   await step('Sesión persiste tras recargar (token guardado)', async () => {
     await page.reload()
