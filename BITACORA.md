@@ -19,3 +19,9 @@
 - Decisiones: claves de Storage = UUID (el nombre original en BD); borrar = fila primero, objeto después; subir = objeto primero, fila después con compensación; miniatura 3MF vía fflate sólo si existe (`Metadata/plate_1.png`…); enlaces firmados (60 s descarga / 1 h miniaturas); materiales dentro de Ajustes.
 - Bugs hallados por e2e móvil: la cabecera con 5 botones ensanchaba el layout (iOS hace zoom-out y el botón de guardar quedaba fuera de pantalla) y el contenido del diálogo no hacía scroll (`min-h-0`). Ambos corregidos y vigilados con `expectNoHorizontalOverflow`.
 - e2e ahora contra el bundle de producción (`vite preview`) para evitar recargas por optimización de dependencias.
+
+## 2026-11-05 · Seguridad y despliegue
+- Security Advisor: migración 4 (REVOKE EXECUTE de rls_auto_enable() a PUBLIC/anon/authenticated; ensure_rls sigue activo). Aceptados: is_owner() y Leaked Password Protection.
+- Push de 7 commits; workflow test → build → deploy correcto. URL: https://xarli11.github.io/PrintForge/
+- Verificado sobre la web publicada con login manual: fase 1 (21 pasos) y fase 2 (16 pasos), 0 errores HTTP; bundle sin credenciales privadas; ficheros sensibles 404.
+- Rutas: HashRouter (`#/…`); una ruta sin `#` devuelve el 404 de GitHub Pages.

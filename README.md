@@ -3,8 +3,10 @@
 Gestor personal de producción e impresión 3D. React + TypeScript + Vite + Tailwind v4, con Supabase (Auth, PostgreSQL, Storage) y despliegue en GitHub Pages. Uso privado: un único usuario autorizado.
 
 ## Estado
+**En producción:** https://xarli11.github.io/PrintForge/ (GitHub Pages, despliegue por GitHub Actions). Las pantallas se abren con `#`, p. ej. `…/PrintForge/#/jobs`.
+
 - **Fase 1** (núcleo): auth privada, trabajos, componentes, cálculos, progreso, dashboard, ajustes. Validada contra Supabase real.
-- **Fase 2** (archivos y materiales): biblioteca de modelos 3MF/STL en Storage privado, miniaturas de 3MF, catálogo de materiales, colores y consumo por componente, costes por material. Código y tests listos; verificación contra Supabase real: `node scripts/verify-real-files.mjs` (tras aplicar la migración 2).
+- **Fase 2** (archivos y materiales): biblioteca de modelos 3MF/STL en Storage privado, miniaturas de 3MF, catálogo de materiales, colores y consumo por componente, costes por material. Validada contra Supabase real y sobre la web publicada (`node scripts/verify-real-files.mjs [url]`).
 - Pendiente: calendario y filtros avanzados (fase 3); metadatos de laminado 3MF, previsualización STL, exportación JSON (fase 4). Ver `TODO.md`.
 
 ## Desarrollo
