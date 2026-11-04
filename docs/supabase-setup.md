@@ -26,7 +26,12 @@ supabase db push --yes --remote
 ```
 Un `supabase db push` sin `--remote` intenta usar Docker local. `--yes` es obligatorio en CI/agentes (el valor por defecto de la confirmación es «no»).
 
-Aplica **en orden** `20261104000001_core.sql` y `20261104000002_files_materials.sql`. La segunda crea el bucket privado `printforge` (límite 50 MB), las tablas de la biblioteca y las políticas de Storage del propietario.
+Aplica **en orden y por separado** (un Run por fichero; si un bloque falla, el SQL Editor revierte todo ese bloque):
+1. `20261104000001_core.sql`
+2. `20261104000002_files_materials.sql`: tablas de la biblioteca, `save_component`, `duplicate_job`.
+3. `20261104000003_storage.sql`: bucket privado `printforge` (50 MB) y políticas de Storage del propietario. Si falla al crear políticas sobre `storage.objects`, créalas desde Storage → Policies con las mismas expresiones.
+
+Comprobación: `select to_regclass('public.model_files'), to_regprocedure('public.save_component(uuid,uuid,jsonb,jsonb)');` y `select public from storage.buckets where id='printforge';` (debe ser `false`).
 
 La migración concede privilegios de forma **explícita** (`grant ... to authenticated`) porque Supabase está retirando los privilegios automáticos en `public`; funciona con cualquiera de las dos configuraciones del Data API.
 
