@@ -7,7 +7,7 @@
 
 ## 2. Bloquear el registro público
 **Authentication → Sign In / Providers → Email**: desactiva **Allow new users to sign up**
-(y deja desactivados el resto de proveedores). Desactiva también *Confirm email* si no quieres depender de SMTP.
+(y deja desactivados el resto de proveedores). Alternativa en `config.toml`: `[auth] enable_signup = false`. Desactiva también *Confirm email* si no quieres depender de SMTP.
 
 La migración añade una segunda barrera: un trigger en `auth.users` que rechaza crear más de un usuario.
 
@@ -16,14 +16,24 @@ La migración añade una segunda barrera: un trigger en `auth.users` que rechaza
 Copia su **UUID** (columna *User UID*).
 
 ## 4. Aplicar migraciones
-Con la CLI (`npm i -g supabase`, `supabase link --project-ref <ref>`, `supabase db push`)
-o pegando en **SQL Editor**, en orden, cada fichero de `supabase/migrations/`.
+**Vía recomendada (sin CLI ni Docker):** abre **SQL Editor**, pega el contenido de cada fichero de `supabase/migrations/` en orden y ejecútalo.
+
+**Vía CLI (opcional, v3):** desde la v3 los comandos apuntan al stack **local** por defecto; para el proyecto alojado hay que indicar `--remote`:
+```bash
+supabase init                 # una vez, crea supabase/config.toml
+supabase link --project-ref <ref>
+supabase db push --yes --remote
+```
+Un `supabase db push` sin `--remote` intenta usar Docker local. `--yes` es obligatorio en CI/agentes (el valor por defecto de la confirmación es «no»).
+
+La migración concede privilegios de forma **explícita** (`grant ... to authenticated`) porque Supabase está retirando los privilegios automáticos en `public`; funciona con cualquiera de las dos configuraciones del Data API.
 
 ## 5. Registrar el UUID del propietario (una sola vez)
 ```sql
 insert into private.app_owner (user_id) values ('<TU-UUID>');
 ```
 Todas las políticas RLS comparan `auth.uid()` con este UUID (`public.is_owner()`).
+Si algún día recreas tu usuario, actualiza el UUID: `update private.app_owner set user_id = '<nuevo>';`.
 Cualquier otro usuario autenticado ve 0 filas y no puede escribir; `anon` no tiene permisos.
 El esquema `private` no está expuesto por la API.
 

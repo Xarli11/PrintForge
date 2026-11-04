@@ -249,7 +249,9 @@ begin
   foreach t in array array['settings', 'materials', 'jobs', 'job_components', 'component_colors', 'production_log']
   loop
     execute format('alter table public.%I enable row level security', t);
-    execute format('revoke all on public.%I from anon', t);
+    -- Grants explícitos: Supabase está retirando los privilegios automáticos en `public` (exposición opt-in).
+    execute format('revoke all on public.%I from anon, authenticated', t);
+    execute format('grant select, insert, update, delete on public.%I to authenticated', t);
     execute format(
       'create policy owner_all on public.%I for all to authenticated using ((select public.is_owner())) with check ((select public.is_owner()))',
       t);
