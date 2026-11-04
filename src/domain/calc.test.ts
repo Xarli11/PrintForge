@@ -14,7 +14,7 @@ const job = (o: Partial<Job> = {}): Job => ({
 const comp = (o: Partial<JobComponent> = {}): JobComponent => ({
   id: 'c1', job_id: 'j1', name: 'Figura', description: '', qty_per_unit: 1, batch_capacity: 1, batch_minutes: 120,
   last_batch_minutes: null, waste_grams_per_batch: 0, completed_qty: 0, failed_qty: 0, status: 'pending', notes: '',
-  position: 0, time_source: 'manual', created_at: '', updated_at: '', ...o,
+  position: 0, time_source: 'manual', file_id: null, created_at: '', updated_at: '', ...o,
 })
 const color = (o: Partial<ComponentColor> = {}): ComponentColor => ({
   id: 'k1', component_id: 'c1', material_id: 'm1', grams_per_batch: 40, source: 'manual', ...o,

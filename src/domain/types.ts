@@ -52,8 +52,14 @@ export interface JobComponent {
   notes: string
   position: number
   time_source: DataSource
+  file_id: string | null
   created_at: string
   updated_at: string
+}
+
+export interface JobFile {
+  job_id: string
+  file_id: string
 }
 
 export interface ComponentColor {

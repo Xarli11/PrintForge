@@ -1,12 +1,15 @@
-import { AlertTriangle, Minus, Pencil, Plus, Trash2, TriangleAlert } from 'lucide-react'
+import { AlertTriangle, Download, FileBox, Minus, Pencil, Plus, Trash2, TriangleAlert } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Badge, Card, Progress } from '@/components/ui/Card'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { Swatch } from '@/components/Swatch'
+import { downloadModel } from '@/data/storage'
 import { useDeleteComponent, useLogProduction } from '@/data/hooks'
+import type { ModelFile } from '@/domain/files'
 import { checkCompleted, type ComponentPlan } from '@/domain/calc'
-import type { Job, JobComponent } from '@/domain/types'
-import { formatInt, formatMinutes, formatPercent } from '@/lib/format'
+import type { ComponentColor, Job, JobComponent, Material } from '@/domain/types'
+import { formatGrams, formatInt, formatMinutes, formatPercent } from '@/lib/format'
 import { ComponentFormDialog } from './ComponentFormDialog'
 import { ProductionDialog } from './ProductionDialog'
 
@@ -15,9 +18,12 @@ interface Props {
   component: JobComponent
   plan: ComponentPlan
   nextPosition: number
+  colors: readonly ComponentColor[]
+  materials: ReadonlyMap<string, Material>
+  file?: ModelFile
 }
 
-export function ComponentCard({ job, component: c, plan, nextPosition }: Props) {
+export function ComponentCard({ job, component: c, plan, nextPosition, colors, materials, file }: Props) {
   const log = useLogProduction()
   const del = useDeleteComponent()
   const [editing, setEditing] = useState(false)
@@ -25,6 +31,7 @@ export function ComponentCard({ job, component: c, plan, nextPosition }: Props) 
   const [deleting, setDeleting] = useState(false)
   const [overflow, setOverflow] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [fileError, setFileError] = useState<string | null>(null)
 
   async function add(delta: number, failed = 0) {
     setError(null)
@@ -84,6 +91,31 @@ export function ComponentCard({ job, component: c, plan, nextPosition }: Props) 
         <Metric label="Tiempo por tanda" value={c.batch_minutes > 0 ? formatMinutes(c.batch_minutes) : '—'} />
       </dl>
 
+      {(colors.length > 0 || file) && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted">
+          {colors.map((k) => {
+            const m = k.material_id ? materials.get(k.material_id) : undefined
+            return (
+              <span key={k.id} className="inline-flex items-center gap-1.5" title={m ? `${m.type} ${m.name}` : 'Sin material asignado'}>
+                <Swatch hex={m?.color_hex ?? '#5e6965'} />
+                {m ? m.name : 'Sin asignar'} · {formatGrams(k.grams_per_batch)}/tanda
+              </span>
+            )
+          })}
+          {file && (
+            <button
+              type="button"
+              onClick={() => downloadModel(file).catch((e: unknown) => setFileError(e instanceof Error ? e.message : 'No se pudo descargar'))}
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-md text-accent-fg hover:underline"
+              aria-label={`Descargar ${file.file_name}`}
+            >
+              <FileBox className="size-3.5" aria-hidden />{file.name}<Download className="size-3" aria-hidden />
+            </button>
+          )}
+        </div>
+      )}
+      {fileError && <p role="alert" className="text-xs text-danger">{fileError}</p>}
+
       <div className="flex flex-wrap gap-1.5 empty:hidden">
         {c.batch_minutes === 0 && <Badge tone="warn"><AlertTriangle className="size-3" aria-hidden />Sin tiempo por tanda</Badge>}
         {plan.partialPieces != null && plan.partialIsConservative && c.batch_minutes > 0 && (
@@ -117,7 +149,7 @@ export function ComponentCard({ job, component: c, plan, nextPosition }: Props) 
       </div>
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
 
-      <ComponentFormDialog open={editing} onClose={() => setEditing(false)} job={job} component={c} nextPosition={nextPosition} />
+      <ComponentFormDialog open={editing} onClose={() => setEditing(false)} job={job} component={c} colors={colors} nextPosition={nextPosition} />
       <ProductionDialog open={registering} onClose={() => setRegistering(false)} component={c} plan={plan} />
       <ConfirmDialog
         open={deleting}

@@ -1,4 +1,4 @@
-import { LayoutDashboard, ListChecks, LogOut, Settings as SettingsIcon, type LucideIcon } from 'lucide-react'
+import { Library, LayoutDashboard, ListChecks, LogOut, Settings as SettingsIcon, type LucideIcon } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '@/features/auth/AuthProvider'
 import { cn } from '@/lib/cn'
@@ -7,6 +7,7 @@ import { Logo } from './Logo'
 const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean }[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/jobs', label: 'Trabajos', icon: ListChecks },
+  { to: '/library', label: 'Biblioteca', icon: Library },
   { to: '/settings', label: 'Ajustes', icon: SettingsIcon },
 ]
 
@@ -55,7 +56,7 @@ export function AppShell() {
       {/* Navegación inferior (móvil) */}
       <nav
         aria-label="Principal"
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
       >
         {NAV.map(({ to, label, icon: Icon, end }) => (
           <NavLink
@@ -82,7 +83,7 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
         <h1 className="truncate text-2xl font-semibold tracking-tight">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+      {actions && <div className="flex max-w-full flex-wrap items-center gap-2">{actions}</div>}
     </header>
   )
 }

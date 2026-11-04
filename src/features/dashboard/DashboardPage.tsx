@@ -11,6 +11,7 @@ import type { Job } from '@/domain/types'
 import { formatGrams, formatInt, formatMinutes } from '@/lib/format'
 import { JobCard } from '@/features/jobs/JobCard'
 import { JobFormDialog } from '@/features/jobs/JobFormDialog'
+import { useJobThumbs } from '@/features/jobs/thumbs'
 
 export function DashboardPage() {
   const { workspace: ws, isLoading, error, refetch } = useWorkspace()
@@ -36,6 +37,8 @@ export function DashboardPage() {
       recent: [...live].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 5),
     }
   }, [ws, today])
+
+  const thumbs = useJobThumbs(ws, view ? [...view.urgent, ...view.inProgress, ...view.upcoming, ...view.recent] : [])
 
   const newJobButton = (
     <Button variant="primary" onClick={() => setCreating(true)}>
@@ -71,10 +74,10 @@ export function DashboardPage() {
               />
             ) : (
               <div className="grid gap-8 xl:grid-cols-2">
-                {view.urgent.length > 0 && <Group title="Encargos urgentes" ws={ws} jobs={view.urgent} today={today} />}
-                {view.inProgress.length > 0 && <Group title="Impresiones actuales" ws={ws} jobs={view.inProgress} today={today} />}
-                <Group title="Próximas entregas" ws={ws} jobs={view.upcoming} today={today} />
-                <Group title="Últimos trabajos modificados" ws={ws} jobs={view.recent} today={today} />
+                {view.urgent.length > 0 && <Group title="Encargos urgentes" ws={ws} jobs={view.urgent} today={today} thumbs={thumbs} />}
+                {view.inProgress.length > 0 && <Group title="Impresiones actuales" ws={ws} jobs={view.inProgress} today={today} thumbs={thumbs} />}
+                <Group title="Próximas entregas" ws={ws} jobs={view.upcoming} today={today} thumbs={thumbs} />
+                <Group title="Últimos trabajos modificados" ws={ws} jobs={view.recent} today={today} thumbs={thumbs} />
               </div>
             )}
           </>
@@ -85,13 +88,13 @@ export function DashboardPage() {
   )
 }
 
-function Group({ title, jobs, ws, today }: { title: string; jobs: Job[]; ws: Workspace; today: string }) {
+function Group({ title, jobs, ws, today, thumbs }: { title: string; jobs: Job[]; ws: Workspace; today: string; thumbs: Map<string, string> }) {
   return (
     <section>
       <SectionTitle>{title}</SectionTitle>
       <div className="flex flex-col gap-3">
         {jobs.map((j) => (
-          <JobCard key={j.id} job={j} plan={ws.plans.get(j.id)!} today={today} hoursPerDay={ws.settings.hours_per_day} />
+          <JobCard key={j.id} job={j} plan={ws.plans.get(j.id)!} today={today} hoursPerDay={ws.settings.hours_per_day} thumbUrl={thumbs.get(j.id)} />
         ))}
       </div>
     </section>

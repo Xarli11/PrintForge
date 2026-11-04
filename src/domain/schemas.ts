@@ -35,8 +35,25 @@ export const componentSchema = z.object({
   waste_grams_per_batch: money('Purga por tanda'),
   status: z.enum(COMPONENT_STATUSES),
   notes: text(2000),
+  file_id: z.string().nullable(),
 })
 export type ComponentInput = z.infer<typeof componentSchema>
+
+export const colorRowSchema = z.object({
+  material_id: z.string().nullable(),
+  grams_per_batch: z.number({ error: 'Gramos: introduce un número' }).min(0, 'Gramos: no puede ser negativo').max(100000),
+})
+export type ColorRow = z.infer<typeof colorRowSchema>
+
+export const materialSchema = z.object({
+  type: text(40).min(1, 'El tipo es obligatorio'),
+  brand: text(80),
+  name: text(120).min(1, 'El nombre es obligatorio'),
+  color_hex: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Color hexadecimal no válido (#RRGGBB)'),
+  price_per_kg: money('Precio por kg'),
+  notes: text(2000),
+})
+export type MaterialInput = z.infer<typeof materialSchema>
 
 export const settingsSchema = z.object({
   hours_per_day: z.number({ error: 'Horas por día: introduce un número' }).gt(0, 'Debe ser mayor que 0').max(24, 'Máximo 24'),

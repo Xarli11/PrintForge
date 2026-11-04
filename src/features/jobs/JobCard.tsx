@@ -1,5 +1,6 @@
-import { Box, Lock } from 'lucide-react'
+import { Lock } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { Thumb } from '@/components/Thumb'
 import { Badge, Card, Progress } from '@/components/ui/Card'
 import { deadlineState, isUrgent, suggestFinishDate, type JobPlan } from '@/domain/calc'
 import type { Job } from '@/domain/types'
@@ -12,9 +13,10 @@ interface Props {
   plan: JobPlan
   today: string
   hoursPerDay: number
+  thumbUrl?: string
 }
 
-export function JobCard({ job, plan, today, hoursPerDay }: Props) {
+export function JobCard({ job, plan, today, hoursPerDay, thumbUrl }: Props) {
   const suggested = suggestFinishDate(plan.remaining.minutes, hoursPerDay, today)
   const state = deadlineState(job, plan.remaining.minutes > 0 ? suggested : null, today)
   const urgent = isUrgent(job, today)
@@ -30,9 +32,7 @@ export function JobCard({ job, plan, today, hoursPerDay }: Props) {
           job.archived_at && 'opacity-60',
         )}
       >
-        <div className="grid size-14 shrink-0 place-items-center rounded-xl border border-line bg-raised text-faint" aria-hidden>
-          <Box className="size-6" />
-        </div>
+        <Thumb url={thumbUrl} label={`Imagen de ${job.name}`} className="size-14" />
         <div className="flex min-w-0 flex-1 flex-col gap-2.5">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <h3 className="min-w-0 truncate text-[15px] font-semibold">{job.name}</h3>

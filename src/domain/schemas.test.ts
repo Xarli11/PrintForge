@@ -7,7 +7,7 @@ const validJob = {
 } as const
 const validComp = {
   name: 'Peana', description: '', qty_per_unit: 1, batch_capacity: 4, batch_minutes: 90, last_batch_minutes: null,
-  waste_grams_per_batch: 0, status: 'pending', notes: '',
+  waste_grams_per_batch: 0, status: 'pending', notes: '', file_id: null,
 } as const
 
 describe('validación de trabajos', () => {

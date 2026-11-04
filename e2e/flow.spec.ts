@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { FakeSupabase } from './fakeSupabase'
+import { expectNoHorizontalOverflow } from './helpers'
 
 async function login(page: Page, api: FakeSupabase) {
   await api.install(page)
@@ -25,6 +26,7 @@ test('flujo principal: encargo de 33 figuras con peanas', async ({ page }, info)
   await dialog.getByRole('switch').click()
   await dialog.getByRole('button', { name: 'Crear trabajo' }).click()
   await expect(page.getByRole('heading', { level: 1, name: '33 figuras personalizadas' })).toBeVisible()
+  await expectNoHorizontalOverflow(page)
 
   // Componente figura: 1 por tanda, 120 min
   await page.getByRole('button', { name: 'Añadir componente' }).click()
@@ -62,11 +64,13 @@ test('flujo principal: encargo de 33 figuras con peanas', async ({ page }, info)
   await expect(dialog.getByRole('alert')).toContainText('supera')
   await dialog.getByRole('button', { name: 'Cancelar' }).click()
 
+  await expectNoHorizontalOverflow(page)
   await page.screenshot({ path: `test-results/shots/${info.project.name}-02-detalle.png`, fullPage: true })
 
   // Dashboard con datos
   await page.goto('/#/')
   await expect(page.getByRole('heading', { name: '33 figuras personalizadas' }).first()).toBeVisible()
+  await expectNoHorizontalOverflow(page)
   await page.screenshot({ path: `test-results/shots/${info.project.name}-03-dashboard.png`, fullPage: true })
 
   // Recarga en una ruta profunda (HashRouter)

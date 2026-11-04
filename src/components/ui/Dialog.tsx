@@ -41,7 +41,7 @@ export function Dialog({ open, onClose, title, children, footer, wide }: DialogP
               <X className="size-4" />
             </Button>
           </header>
-          <div className="overflow-y-auto px-5 py-4">{children}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">{children}</div>
           {footer && <footer className="flex items-center justify-end gap-2 border-t border-line px-5 py-3.5">{footer}</footer>}
         </div>
       )}

@@ -9,6 +9,7 @@ import { todayISO } from '@/domain/dates'
 import type { Job, JobKind, JobStatus, Priority } from '@/domain/types'
 import { JobCard } from './JobCard'
 import { JobFormDialog } from './JobFormDialog'
+import { useJobThumbs } from './thumbs'
 import { KIND_LABEL, priorityOptions, statusOptions } from './meta'
 
 type Sort = 'due' | 'recent' | 'name'
@@ -46,6 +47,8 @@ export function JobsPage() {
       .filter((j) => !q || `${j.name} ${j.client_name ?? ''}`.toLowerCase().includes(q))
       .sort(SORTERS[sort])
   }, [ws, query, status, kind, priority, mandatory, sort, showArchived])
+
+  const thumbs = useJobThumbs(ws, jobs)
 
   return (
     <>
@@ -113,7 +116,7 @@ export function JobsPage() {
         {ws && jobs.length > 0 && (
           <div className="grid gap-3 xl:grid-cols-2">
             {jobs.map((j) => (
-              <JobCard key={j.id} job={j} plan={ws.plans.get(j.id)!} today={today} hoursPerDay={ws.settings.hours_per_day} />
+              <JobCard key={j.id} job={j} plan={ws.plans.get(j.id)!} today={today} hoursPerDay={ws.settings.hours_per_day} thumbUrl={thumbs.get(j.id)} />
             ))}
           </div>
         )}

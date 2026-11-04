@@ -7,6 +7,7 @@ import { ErrorState, Loading } from '@/components/ui/States'
 import { useSaveSettings, useSettings } from '@/data/hooks'
 import { fieldErrors, settingsSchema } from '@/domain/schemas'
 import { useAuth } from '@/features/auth/AuthProvider'
+import { MaterialsCard } from './MaterialsCard'
 
 const toNumber = (s: string) => (s.trim() === '' ? NaN : Number(s.replace(',', '.')))
 
@@ -89,6 +90,8 @@ export function SettingsPage() {
             </Card>
           </form>
         )}
+
+        <MaterialsCard currency={data?.currency ?? 'EUR'} />
 
         <Card className="flex flex-wrap items-center justify-between gap-3 p-5">
           <div className="min-w-0">

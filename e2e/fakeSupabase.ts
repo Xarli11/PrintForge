@@ -12,11 +12,12 @@ type Row = Record<string, any>
  */
 export class FakeSupabase {
   tables: Record<string, Row[]> = {
-    jobs: [], job_components: [], component_colors: [], materials: [], production_log: [],
+    jobs: [], job_components: [], component_colors: [], materials: [], production_log: [], model_files: [], job_files: [],
     settings: [{ singleton: true, hours_per_day: 8, printer_watts: 100, kwh_price: 0.2, default_price_per_kg: 20, currency: 'EUR' }],
   }
   owner = true
   requests: string[] = []
+  objects = new Map<string, number>() // ruta → bytes
 
   async install(page: Page) {
     await page.route(`${FAKE_URL}/**`, (route) => this.handle(route))
@@ -53,6 +54,8 @@ export class FakeSupabase {
     }
     if (url.pathname === '/auth/v1/logout') return this.json(route, {}, 204)
     if (url.pathname === '/rest/v1/rpc/is_owner') return this.json(route, this.owner)
+    if (url.pathname === '/rest/v1/rpc/save_component') return this.saveComponent(route, JSON.parse(req.postData() ?? '{}'))
+    if (url.pathname.startsWith('/storage/v1/')) return this.storage(route, url, method, req.postData())
     if (url.pathname === '/rest/v1/rpc/duplicate_job') return this.duplicate(route, JSON.parse(req.postData() ?? '{}').p_job_id)
 
     const table = url.pathname.replace('/rest/v1/', '')
@@ -83,10 +86,50 @@ export class FakeSupabase {
     if (method === 'DELETE') {
       const found = new Set(this.match(rows, url.searchParams))
       this.tables[table] = rows.filter((r) => !found.has(r))
+      if (table === 'model_files') {
+        const ids = new Set([...found].map((r) => r.id))
+        this.tables.job_files = this.tables.job_files!.filter((j) => !ids.has(j.file_id))
+        for (const c of this.tables.job_components!) if (ids.has(c.file_id)) c.file_id = null
+      }
       if (table === 'jobs') this.tables.job_components = this.tables.job_components!.filter((c) => this.tables.jobs!.some((j) => j.id === c.job_id))
       return this.json(route, null, 204)
     }
     return this.json(route, { message: 'unsupported' }, 400)
+  }
+
+  private saveComponent(route: Route, a: Row) {
+    const d = a.p_data as Row
+    let comp = a.p_id ? this.tables.job_components!.find((c) => c.id === a.p_id) : undefined
+    if (comp) Object.assign(comp, d, { updated_at: now() })
+    else {
+      comp = { id: uid(), job_id: a.p_job_id, created_at: now(), updated_at: now(), ...defaults('job_components'), ...d, completed_qty: 0, failed_qty: 0 }
+      this.tables.job_components!.push(comp)
+    }
+    if (a.p_colors) {
+      this.tables.component_colors = this.tables.component_colors!.filter((k) => k.component_id !== comp!.id)
+      for (const k of a.p_colors as Row[]) this.tables.component_colors!.push({ id: uid(), component_id: comp.id, source: 'manual', ...k })
+    }
+    return this.json(route, comp.id)
+  }
+
+  private storage(route: Route, url: URL, method: string, body: string | null) {
+    const p = url.pathname.replace('/storage/v1/', '')
+    const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==', 'base64')
+    if (method === 'GET' && p.startsWith('object/sign/')) return route.fulfill({ status: 200, contentType: 'image/png', body: PNG })
+    if (method === 'POST' && p === 'object/sign/printforge') {
+      const { paths } = JSON.parse(body ?? '{}') as { paths: string[] }
+      return this.json(route, paths.map((path) => ({ path, signedURL: `/object/sign/printforge/${path}?token=t`, error: null })))
+    }
+    if (method === 'POST' && p.startsWith('object/sign/printforge/')) return this.json(route, { signedURL: `/${p}?token=t` })
+    if (method === 'POST' && p.startsWith('object/printforge/')) {
+      this.objects.set(p.replace('object/printforge/', ''), Number(route.request().headers()['content-length'] ?? 0))
+      return this.json(route, { Key: p, Id: uid() })
+    }
+    if (method === 'DELETE' && p === 'object/printforge') {
+      for (const x of (JSON.parse(body ?? '{}') as { prefixes: string[] }).prefixes) this.objects.delete(x)
+      return this.json(route, [])
+    }
+    return this.json(route, { message: 'storage: no soportado' }, 400)
   }
 
   private applyLog(row: Row) {
@@ -110,7 +153,8 @@ export class FakeSupabase {
 function defaults(table: string): Row {
   if (table === 'jobs')
     return { description: '', notes: '', client_name: null, estimated_finish_date: null, sale_price: null, extra_costs: 0, cover_path: null }
+  if (table === 'model_files') return { metadata: {}, thumbnail_path: null, thumbnail_source: null }
   if (table === 'job_components')
-    return { description: '', notes: '', last_batch_minutes: null, waste_grams_per_batch: 0, completed_qty: 0, failed_qty: 0, status: 'pending', position: 0, time_source: 'manual' }
+    return { file_id: null, description: '', notes: '', last_batch_minutes: null, waste_grams_per_batch: 0, completed_qty: 0, failed_qty: 0, status: 'pending', position: 0, time_source: 'manual' }
   return {}
 }

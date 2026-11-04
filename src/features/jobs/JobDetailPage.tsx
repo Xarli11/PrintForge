@@ -1,19 +1,23 @@
-import { Archive, ArchiveRestore, ArrowLeft, CheckCircle2, Copy, Lock, Pencil, Plus, Trash2, TriangleAlert } from 'lucide-react'
-import { useMemo, useState, type ReactNode } from 'react'
+import { Archive, ArchiveRestore, ArrowLeft, CheckCircle2, Copy, ImagePlus, Lock, Pencil, Plus, Trash2, TriangleAlert } from 'lucide-react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { PageHeader } from '@/components/AppShell'
+import { Swatch } from '@/components/Swatch'
+import { Thumb } from '@/components/Thumb'
 import { Button } from '@/components/ui/Button'
 import { Badge, Card, SectionTitle, Stat } from '@/components/ui/Card'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Select } from '@/components/ui/Form'
 import { EmptyState, ErrorState, Loading } from '@/components/ui/States'
-import { useDeleteJob, useDuplicateJob, useUpdateJob, useWorkspace } from '@/data/hooks'
+import { useDeleteJob, useDuplicateJob, useSetCover, useUpdateJob, useWorkspace } from '@/data/hooks'
 import { deadlineState, isActiveJob, suggestFinishDate } from '@/domain/calc'
 import { diffDays, todayISO } from '@/domain/dates'
 import type { JobStatus } from '@/domain/types'
 import { formatDate, formatGrams, formatInt, formatMinutes, formatMoney, formatPercent } from '@/lib/format'
 import { ComponentCard } from './ComponentCard'
 import { ComponentFormDialog } from './ComponentFormDialog'
+import { JobFilesSection } from './JobFilesSection'
+import { useJobThumbs } from './thumbs'
 import { JobFormDialog } from './JobFormDialog'
 import { DeadlineBadge, KIND_LABEL, PRIORITY_META, StatusBadge, statusOptions } from './meta'
 
@@ -24,6 +28,8 @@ export function JobDetailPage() {
   const update = useUpdateJob()
   const duplicate = useDuplicateJob()
   const remove = useDeleteJob()
+  const setCover = useSetCover()
+  const coverInput = useRef<HTMLInputElement>(null)
   const [editing, setEditing] = useState(false)
   const [addingComponent, setAddingComponent] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -33,6 +39,8 @@ export function JobDetailPage() {
   const job = ws?.jobs.find((j) => j.id === id)
   const plan = job && ws ? ws.plans.get(job.id) : undefined
   const components = (job && ws?.componentsByJob.get(job.id)) || []
+
+  const thumb = useJobThumbs(ws, job ? [job] : []).get(job?.id ?? '')
 
   if (isLoading) return <Loading />
   if (error) return <div className="p-4 md:p-8"><ErrorState error={error} onRetry={refetch} /></div>
@@ -77,6 +85,13 @@ export function JobDetailPage() {
         subtitle={[KIND_LABEL[job.kind], job.client_name].filter(Boolean).join(' · ')}
         actions={
           <>
+            <input ref={coverInput} type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" tabIndex={-1} aria-label="Seleccionar imagen de portada"
+              onChange={(e) => {
+                const image = e.target.files?.[0]
+                e.target.value = ''
+                if (image) void guarded(() => setCover.mutateAsync({ job, image }))
+              }} />
+            <Button size="sm" loading={setCover.isPending} onClick={() => coverInput.current?.click()}><ImagePlus className="size-4" aria-hidden />Imagen</Button>
             <Button size="sm" onClick={() => setEditing(true)}><Pencil className="size-4" aria-hidden />Editar</Button>
             <Button size="sm" loading={duplicate.isPending} onClick={() => guarded(async () => navigate(`/jobs/${await duplicate.mutateAsync(job.id)}`))}>
               <Copy className="size-4" aria-hidden />Duplicar
@@ -94,6 +109,7 @@ export function JobDetailPage() {
         {actionError && <p role="alert" className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">{actionError}</p>}
 
         <div className="flex flex-wrap items-center gap-2">
+          <Thumb url={thumb} label={`Imagen de ${job.name}`} className="size-14" />
           <div className="w-44">
             <Select aria-label="Estado del trabajo" value={job.status} onChange={(e) => void setStatus(e.target.value as JobStatus)}>
               {statusOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -147,11 +163,22 @@ export function JobDetailPage() {
           ) : (
             <div className="grid gap-4 xl:grid-cols-2">
               {components.map((c) => (
-                <ComponentCard key={c.id} job={job} component={c} plan={plan.components.find((p) => p.componentId === c.id)!} nextPosition={nextPosition} />
+                <ComponentCard
+                  key={c.id}
+                  job={job}
+                  component={c}
+                  plan={plan.components.find((p) => p.componentId === c.id)!}
+                  nextPosition={nextPosition}
+                  colors={ws.colorsByComponent.get(c.id) ?? []}
+                  materials={ws.pricing.materials}
+                  file={c.file_id ? ws.modelsById.get(c.file_id) : undefined}
+                />
               ))}
             </div>
           )}
         </section>
+
+        <JobFilesSection job={job} ws={ws} />
 
         <div className="grid gap-8 lg:grid-cols-2">
           <section>
@@ -164,6 +191,17 @@ export function JobDetailPage() {
               <Row label="Tiempo restante" value={formatMinutes(plan.remaining.minutes)} />
               {hasFilament ? (
                 <>
+                  {plan.total.usage.map((u) => {
+                    const m = u.materialId ? ws.pricing.materials.get(u.materialId) : undefined
+                    const left = plan.remaining.usage.find((r) => r.materialId === u.materialId)?.grams ?? 0
+                    return (
+                      <Row
+                        key={u.materialId ?? 'none'}
+                        label={<span className="inline-flex items-center gap-2"><Swatch hex={m?.color_hex ?? '#5e6965'} />{m ? m.name : 'Sin material asignado'}</span>}
+                        value={`${formatGrams(u.grams)} · quedan ${formatGrams(left)}`}
+                      />
+                    )
+                  })}
                   <Row label="Filamento necesario" value={formatGrams(plan.total.grams)} />
                   <Row label="Filamento pendiente" value={formatGrams(plan.remaining.grams)} />
                   <Row label="Coste de filamento" value={formatMoney(plan.total.filamentCost, ws.settings.currency)} />
@@ -221,7 +259,7 @@ export function JobDetailPage() {
   )
 }
 
-function Row({ label, value, strong, tone }: { label: string; value: ReactNode; strong?: boolean; tone?: 'warn' | 'danger' | 'accent' }) {
+function Row({ label, value, strong, tone }: { label: ReactNode; value: ReactNode; strong?: boolean; tone?: 'warn' | 'danger' | 'accent' }) {
   const color = tone === 'warn' ? 'text-warn' : tone === 'danger' ? 'text-danger' : tone === 'accent' ? 'text-accent-fg' : ''
   return (
     <div className="flex items-center justify-between gap-4 px-4 py-2.5">
