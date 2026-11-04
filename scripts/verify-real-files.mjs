@@ -53,6 +53,37 @@ async function step(name, fn) {
   }
 }
 const dlg = () => page.getByRole('dialog')
+async function cleanup() {
+  const re = /\[e2e\]/
+  for (;;) {
+    await page.goto(`${BASE}/#/jobs`)
+    await page.getByLabel('Estado').selectOption('all')
+    await page.getByLabel('Buscar trabajos').fill('[e2e]')
+    await page.waitForTimeout(700)
+    if ((await page.getByRole('heading', { name: re }).count()) === 0) break
+    await page.getByRole('heading', { name: re }).first().click()
+    await page.getByRole('button', { name: 'Eliminar trabajo' }).click()
+    await dlg().getByRole('button', { name: 'Eliminar definitivamente' }).click()
+    await page.getByRole('heading', { name: 'Trabajos', exact: true }).waitFor({ timeout: 20_000 })
+  }
+  for (;;) {
+    await page.goto(`${BASE}/#/library`)
+    await page.getByLabel('Buscar modelos').fill('[e2e]')
+    await page.waitForTimeout(700)
+    if ((await page.getByRole('button', { name: /Abrir \[e2e\]/ }).count()) === 0) break
+    await page.getByRole('button', { name: /Abrir \[e2e\]/ }).first().click()
+    await dlg().getByRole('button', { name: 'Eliminar', exact: true }).click()
+    await page.getByRole('dialog').last().getByRole('button', { name: 'Eliminar archivo' }).click()
+    await page.waitForTimeout(1200)
+  }
+  await page.goto(`${BASE}/#/settings`)
+  await page.getByLabel('Horas de impresión por día').waitFor({ timeout: 20_000 })
+  while ((await page.getByRole('button', { name: /Eliminar \[e2e\]/ }).count()) > 0) {
+    await page.getByRole('button', { name: /Eliminar \[e2e\]/ }).first().click()
+    await page.getByRole('dialog').last().getByRole('button', { name: 'Eliminar', exact: true }).click()
+    await page.waitForTimeout(1200)
+  }
+}
 const wait = { timeout: 20_000 }
 const expect = (cond, msg) => { if (!cond) throw new Error(msg) }
 
@@ -76,11 +107,7 @@ try {
     expect((await page.getByText('No se pudieron cargar los datos').count()) === 0, 'Error de carga: ¿está aplicada la migración 20261104000002?')
   })
 
-  await step('Sin restos [e2e] previos', async () => {
-    await page.getByLabel('Buscar modelos').fill('[e2e]')
-    await page.waitForTimeout(600)
-    expect((await page.getByRole('button', { name: /Abrir \[e2e\]/ }).count()) === 0, 'Hay modelos [e2e] previos: bórralos antes de repetir')
-  })
+  await step('Limpia restos [e2e] de ejecuciones anteriores', cleanup)
 
   await step('Crear material [e2e] (25 €/kg) en Ajustes', async () => {
     await page.goto(`${BASE}/#/settings`)
@@ -119,7 +146,6 @@ try {
     const chunks = []
     for await (const c of stream) chunks.push(c)
     expect(sha(Buffer.concat(chunks)) === sha(MF3), 'El archivo descargado difiere del original')
-    signedSample = { download: download.url() }
     await page.keyboard.press('Escape')
   })
 
@@ -151,6 +177,9 @@ try {
   })
 
   await step('Enlace firmado: válido sin sesión, manipulado/expirado falla', async () => {
+    const path0 = uploaded.find((p) => p.startsWith('files/') && p.endsWith('.3mf'))
+    const first = await authed(`/storage/v1/object/sign/printforge/${path0}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ expiresIn: 60 }) })
+    signedSample = { download: `${SB}/storage/v1${(await first.json()).signedURL}` }
     const good = await fetch(signedSample.download)
     expect(good.status === 200 && sha(Buffer.from(await good.arrayBuffer())) === sha(MF3), `El enlace firmado no entregó el archivo (HTTP ${good.status})`)
     const u = new URL(signedSample.download)
@@ -252,26 +281,12 @@ try {
     expect((await f.json()).length === 1, 'Debía quedar sólo el STL en files/')
   })
 
-  await step('Limpieza: trabajos, modelos y material [e2e]', async () => {
-    for (let i = 0; i < 2; i++) {
-      await page.goto(`${BASE}/#/jobs`)
-      await page.getByLabel('Buscar trabajos').fill('[e2e]')
-      await page.getByRole('heading', { name: /\[e2e\]/ }).first().click()
-      await page.getByRole('button', { name: 'Eliminar trabajo' }).click()
-      await dlg().getByRole('button', { name: 'Eliminar definitivamente' }).click()
-      await page.getByRole('heading', { name: 'Trabajos', exact: true }).waitFor(wait)
+  await step('Limpieza final: trabajos, modelos y material [e2e]', async () => {
+    await cleanup()
+    for (const prefix of ['files', 'thumbs']) {
+      const r = await authed('/storage/v1/object/list/printforge', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prefix, limit: 100 }) })
+      expect((await r.json()).length === 0, `Quedan objetos en ${prefix}/`)
     }
-    await page.goto(`${BASE}/#/library`)
-    await page.getByRole('button', { name: 'Abrir [e2e] Peana' }).click()
-    await dlg().getByRole('button', { name: 'Eliminar', exact: true }).click()
-    await page.getByRole('dialog').last().getByRole('button', { name: 'Eliminar archivo' }).click()
-    await page.getByRole('button', { name: 'Abrir [e2e] Peana' }).waitFor({ state: 'detached', ...wait })
-    await page.goto(`${BASE}/#/settings`)
-    await page.getByRole('button', { name: 'Eliminar [e2e] Verde' }).click()
-    await page.getByRole('dialog').last().getByRole('button', { name: 'Eliminar', exact: true }).click()
-    await page.getByText('[e2e] Verde').waitFor({ state: 'detached', ...wait })
-    const f = await authed('/storage/v1/object/list/printforge', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ prefix: 'files', limit: 100 }) })
-    expect((await f.json()).length === 0, 'Quedan objetos en Storage')
   })
 } catch {
   console.log('\nInterrumpido por un fallo. Revisa test-results/real y borra a mano lo que empiece por [e2e] (trabajos, modelos, material).')

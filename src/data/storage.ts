@@ -171,16 +171,21 @@ export async function signedUrls(paths: string[], expiresIn = 3600): Promise<Rec
   return out
 }
 
-/** Descarga el original con su nombre de archivo, mediante enlace temporal de 60 s. */
+/**
+ * Descarga el original con su nombre exacto. Se baja autenticado (sin enlace público) y se guarda desde un Blob:
+ * el parámetro `download` de Supabase no decodifica el nombre (`[a] b.3mf` llegaría como `%5Ba%5D b.3mf`).
+ */
 export async function downloadModel(model: ModelFile): Promise<void> {
-  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(model.storage_path, 60, { download: model.file_name })
-  if (error || !data) throw new Error(error ? storageMessage(error) : 'No se pudo generar el enlace de descarga')
+  const { data, error } = await supabase.storage.from(BUCKET).download(model.storage_path)
+  if (error || !data) throw new Error(error ? storageMessage(error) : 'No se pudo descargar el archivo')
+  const url = URL.createObjectURL(data)
   const a = document.createElement('a')
-  a.href = data.signedUrl
-  a.rel = 'noopener'
+  a.href = url
+  a.download = model.file_name
   document.body.appendChild(a)
   a.click()
   a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
 
 export { defaultModelName }
